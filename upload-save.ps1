@@ -74,7 +74,8 @@ Write-Host "  Uploading..." -ForegroundColor Cyan
 # Upload via SCP
 try {
     $scpTarget = "${User}@${ServerIP}:/opt/factorio/saves/${TargetName}"
-    scp $SaveFile $scpTarget
+    # Quote the path for files with spaces
+    scp "`"$SaveFile`"" $scpTarget
     
     if ($LASTEXITCODE -ne 0) {
         throw "SCP failed with exit code $LASTEXITCODE"
