@@ -224,17 +224,15 @@ configure_container() {
   done
   msg_ok "SSH Passwort gesetzt"
 
-  # Samba Backup (optional)
+  # Game Password (for public servers)
   echo ""
-  read -rp "Configure Samba backup mount? [y/N]: " CONFIGURE_SMB
-  CONFIGURE_SMB=${CONFIGURE_SMB:-n}
-
-  if [[ ${CONFIGURE_SMB,,} == "y" ]]; then
-    read -rp "Samba Server IP: " SMB_SERVER
-    read -rp "Samba Share Path (e.g. backup/factorio): " SMB_SHARE
-    read -rp "Samba Username: " SMB_USER
-    read -rsp "Samba Password: " SMB_PASS
-    echo ""
+  echo -e "${YW}Game Password (optional, recommended for public servers):${CL}"
+  read -rsp "Game Password (leave empty for no password): " GAME_PASSWORD
+  echo ""
+  if [[ -n "$GAME_PASSWORD" ]]; then
+    msg_ok "Game password set"
+  else
+    msg_warn "No game password - server will be open to anyone!"
   fi
 
   # Summary
@@ -248,8 +246,10 @@ configure_container() {
   echo -e "  Network:         ${BRIDGE} (${NET_CONFIG})"
   echo -e "  Template Store:  ${TEMPLATE_STORAGE}"
   echo -e "  Container Store: ${CONTAINER_STORAGE}"
-  if [[ ${CONFIGURE_SMB,,} == "y" ]]; then
-    echo -e "  Samba Backup:    //${SMB_SERVER}/${SMB_SHARE}"
+  if [[ -n "$GAME_PASSWORD" ]]; then
+    echo -e "  Game Password:   ****"
+  else
+    echo -e "  Game Password:   ${RD}None (open server)${CL}"
   fi
   echo ""
 
@@ -410,13 +410,13 @@ install_factorio() {
 {
     "name": "Factorio Server",
     "description": "A Factorio server running on Proxmox LXC",
-    "tags": ["game", "private"],
+    "tags": ["game"],
     "max_players": 0,
-    "visibility": {"public": false, "lan": true},
+    "visibility": {"public": true, "lan": true},
     "username": "",
     "password": "",
     "token": "",
-    "game_password": "",
+    "game_password": "__GAME_PASSWORD__",
     "require_user_verification": false,
     "max_upload_in_kilobytes_per_second": 0,
     "max_upload_slots": 5,
@@ -495,23 +495,11 @@ SYSTEMD
   pct exec "$CT_ID" -- systemctl enable factorio
   msg_ok "Systemd service created"
 
-  # Samba mount configuration
-  if [[ ${CONFIGURE_SMB,,} == "y" ]]; then
-    msg_info "Configuring Samba backup mount"
-    # Create credentials file
-    {
-      echo "username=${SMB_USER}"
-      echo "password=${SMB_PASS}"
-    } | pct exec "$CT_ID" -- tee /root/.smbcredentials >/dev/null
-    pct exec "$CT_ID" -- chmod 600 /root/.smbcredentials
-    # Add fstab entry
-    echo "//${SMB_SERVER}/${SMB_SHARE} /backup cifs credentials=/root/.smbcredentials,uid=factorio,gid=factorio,file_mode=0660,dir_mode=0770,nofail 0 0" | pct exec "$CT_ID" -- tee -a /etc/fstab >/dev/null
-    # Try to mount (don't fail if it doesn't work)
-    if pct exec "$CT_ID" -- mount -a 2>/dev/null; then
-      msg_ok "Samba backup configured and mounted"
-    else
-      msg_warn "Samba backup configured but mount failed - check credentials/network"
-    fi
+  # Set game password in config
+  if [[ -n "$GAME_PASSWORD" ]]; then
+    pct exec "$CT_ID" -- sed -i "s/__GAME_PASSWORD__/${GAME_PASSWORD}/" /opt/factorio/config/server-settings.json
+  else
+    pct exec "$CT_ID" -- sed -i 's/__GAME_PASSWORD__//' /opt/factorio/config/server-settings.json
   fi
 
   msg_info "Creating dynamic MOTD"
