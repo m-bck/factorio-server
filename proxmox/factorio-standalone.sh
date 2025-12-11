@@ -224,32 +224,94 @@ configure_container() {
   done
   msg_ok "SSH Passwort gesetzt"
 
-  # Game Password (for public servers)
+  # ═══════════════════════════════════════════════════════════════════════════
+  # FACTORIO SERVER CONFIGURATION
+  # ═══════════════════════════════════════════════════════════════════════════
   echo ""
-  echo -e "${YW}Game Password (optional, recommended for public servers):${CL}"
+  echo -e "${BOLD}${BL}Factorio Server Configuration${CL}"
+  echo -e "${DIM}Press Enter to accept defaults [shown in brackets]${CL}"
+  echo ""
+
+  # Server Name
+  read -rp "Server Name [Factorio Server]: " SERVER_NAME
+  SERVER_NAME=${SERVER_NAME:-Factorio Server}
+
+  # Server Description
+  read -rp "Server Description [A Factorio server running on Proxmox LXC]: " SERVER_DESCRIPTION
+  SERVER_DESCRIPTION=${SERVER_DESCRIPTION:-A Factorio server running on Proxmox LXC}
+
+  # Max Players (0 = unlimited)
+  read -rp "Max Players (0 = unlimited) [0]: " MAX_PLAYERS
+  MAX_PLAYERS=${MAX_PLAYERS:-0}
+
+  # Public Visibility
+  echo ""
+  read -rp "List server publicly on factorio.com? [y/N]: " PUBLIC_VISIBLE
+  PUBLIC_VISIBLE=${PUBLIC_VISIBLE:-n}
+  if [[ ${PUBLIC_VISIBLE,,} == "y" ]]; then
+    VISIBILITY_PUBLIC="true"
+  else
+    VISIBILITY_PUBLIC="false"
+  fi
+
+  # Factorio Account (required for public servers)
+  echo ""
+  echo -e "${DIM}Factorio account credentials (required for public servers)${CL}"
+  echo -e "${DIM}Find these at https://factorio.com/profile or in %APPDATA%\\Factorio\\player-data.json${CL}"
+  read -rp "Factorio Username (leave empty if private): " FACTORIO_USERNAME
+  
+  if [[ -n "$FACTORIO_USERNAME" ]]; then
+    echo -e "${YW}Token is more secure than password. Find it at https://factorio.com/profile${CL}"
+    read -rsp "Factorio Token (recommended): " FACTORIO_TOKEN
+    echo ""
+    if [[ -z "$FACTORIO_TOKEN" ]]; then
+      echo -e "${RD}Password authentication is not recommended!${CL}"
+      read -rsp "Factorio Password (not recommended): " FACTORIO_PASSWORD
+      echo ""
+    fi
+  fi
+
+  # Game Password
+  echo ""
+  echo -e "${YW}Game Password (players need this to join):${CL}"
   read -rsp "Game Password (leave empty for no password): " GAME_PASSWORD
   echo ""
   if [[ -n "$GAME_PASSWORD" ]]; then
     msg_ok "Game password set"
   else
-    msg_warn "No game password - server will be open to anyone!"
+    msg_warn "No game password - anyone can join!"
   fi
 
   # Summary
   echo ""
   echo -e "${BOLD}${GN}Configuration Summary:${CL}"
-  echo -e "  Container ID:    ${CT_ID}"
-  echo -e "  Hostname:        ${CT_HOSTNAME}"
-  echo -e "  Disk Size:       ${DISK_SIZE} GB"
-  echo -e "  CPU Cores:       ${CORE_COUNT}"
-  echo -e "  RAM:             ${RAM_SIZE} MB"
-  echo -e "  Network:         ${BRIDGE} (${NET_CONFIG})"
-  echo -e "  Template Store:  ${TEMPLATE_STORAGE}"
-  echo -e "  Container Store: ${CONTAINER_STORAGE}"
-  if [[ -n "$GAME_PASSWORD" ]]; then
-    echo -e "  Game Password:   ****"
+  echo ""
+  echo -e "  ${BOLD}Container:${CL}"
+  echo -e "    ID:            ${CT_ID}"
+  echo -e "    Hostname:      ${CT_HOSTNAME}"
+  echo -e "    Disk Size:     ${DISK_SIZE} GB"
+  echo -e "    CPU Cores:     ${CORE_COUNT}"
+  echo -e "    RAM:           ${RAM_SIZE} MB"
+  echo -e "    Network:       ${BRIDGE} (${NET_CONFIG})"
+  echo -e "    Template:      ${TEMPLATE_STORAGE}"
+  echo -e "    Storage:       ${CONTAINER_STORAGE}"
+  echo ""
+  echo -e "  ${BOLD}Factorio Server:${CL}"
+  echo -e "    Name:          ${SERVER_NAME}"
+  echo -e "    Description:   ${SERVER_DESCRIPTION}"
+  echo -e "    Max Players:   ${MAX_PLAYERS}"
+  if [[ "$VISIBILITY_PUBLIC" == "true" ]]; then
+    echo -e "    Public:        ${GN}Yes (listed on factorio.com)${CL}"
   else
-    echo -e "  Game Password:   ${RD}None (open server)${CL}"
+    echo -e "    Public:        ${YW}No (LAN only)${CL}"
+  fi
+  if [[ -n "$FACTORIO_USERNAME" ]]; then
+    echo -e "    Account:       ${FACTORIO_USERNAME}"
+  fi
+  if [[ -n "$GAME_PASSWORD" ]]; then
+    echo -e "    Game Password: ****"
+  else
+    echo -e "    Game Password: ${RD}None${CL}"
   fi
   echo ""
 
@@ -408,14 +470,14 @@ install_factorio() {
   msg_info "Creating server configuration"
   cat <<'SERVERCONF' | pct exec "$CT_ID" -- tee /opt/factorio/config/server-settings.json >/dev/null
 {
-    "name": "Factorio Server",
-    "description": "A Factorio server running on Proxmox LXC",
+    "name": "__SERVER_NAME__",
+    "description": "__SERVER_DESCRIPTION__",
     "tags": ["game"],
-    "max_players": 0,
-    "visibility": {"public": true, "lan": true},
-    "username": "",
-    "password": "",
-    "token": "",
+    "max_players": __MAX_PLAYERS__,
+    "visibility": {"public": __VISIBILITY_PUBLIC__, "lan": true},
+    "username": "__FACTORIO_USERNAME__",
+    "password": "__FACTORIO_PASSWORD__",
+    "token": "__FACTORIO_TOKEN__",
     "game_password": "__GAME_PASSWORD__",
     "require_user_verification": false,
     "max_upload_in_kilobytes_per_second": 0,
@@ -495,12 +557,25 @@ SYSTEMD
   pct exec "$CT_ID" -- systemctl enable factorio
   msg_ok "Systemd service created"
 
-  # Set game password in config
-  if [[ -n "$GAME_PASSWORD" ]]; then
-    pct exec "$CT_ID" -- sed -i "s/__GAME_PASSWORD__/${GAME_PASSWORD}/" /opt/factorio/config/server-settings.json
-  else
-    pct exec "$CT_ID" -- sed -i 's/__GAME_PASSWORD__//' /opt/factorio/config/server-settings.json
-  fi
+  # Apply server configuration
+  msg_info "Applying server configuration"
+  
+  # Escape special characters for sed (especially for passwords/tokens)
+  escape_sed() {
+    echo "$1" | sed -e 's/[\/&]/\\&/g'
+  }
+  
+  # Replace placeholders in server-settings.json
+  pct exec "$CT_ID" -- sed -i "s/__SERVER_NAME__/$(escape_sed "$SERVER_NAME")/" /opt/factorio/config/server-settings.json
+  pct exec "$CT_ID" -- sed -i "s/__SERVER_DESCRIPTION__/$(escape_sed "$SERVER_DESCRIPTION")/" /opt/factorio/config/server-settings.json
+  pct exec "$CT_ID" -- sed -i "s/__MAX_PLAYERS__/${MAX_PLAYERS}/" /opt/factorio/config/server-settings.json
+  pct exec "$CT_ID" -- sed -i "s/__VISIBILITY_PUBLIC__/${VISIBILITY_PUBLIC}/" /opt/factorio/config/server-settings.json
+  pct exec "$CT_ID" -- sed -i "s/__FACTORIO_USERNAME__/$(escape_sed "${FACTORIO_USERNAME:-}")/" /opt/factorio/config/server-settings.json
+  pct exec "$CT_ID" -- sed -i "s/__FACTORIO_PASSWORD__/$(escape_sed "${FACTORIO_PASSWORD:-}")/" /opt/factorio/config/server-settings.json
+  pct exec "$CT_ID" -- sed -i "s/__FACTORIO_TOKEN__/$(escape_sed "${FACTORIO_TOKEN:-}")/" /opt/factorio/config/server-settings.json
+  pct exec "$CT_ID" -- sed -i "s/__GAME_PASSWORD__/$(escape_sed "${GAME_PASSWORD:-}")/" /opt/factorio/config/server-settings.json
+  
+  msg_ok "Server configuration applied"
 
   msg_info "Creating dynamic MOTD"
   cat <<'MOTDEOF' | pct exec "$CT_ID" -- tee /etc/update-motd.d/10-factorio >/dev/null

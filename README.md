@@ -15,16 +15,16 @@ Das Script führt dich durch einen interaktiven Wizard und erledigt alles automa
 ## ✨ Features
 
 - **Ein-Befehl-Installation** – Wie die bekannten [Proxmox VE Helper Scripts](https://community-scripts.github.io/ProxmoxVE/)
-- **Interaktiver Wizard** – Konfiguration von ID, Ressourcen, Netzwerk
+- **Interaktiver Wizard** – Konfiguration von Container, Netzwerk und Factorio Server
 - **Automatische Updates** – Factorio lässt sich einfach aktualisieren
-- **Samba Backup** – Optional: Automatische Backups auf Netzwerk-Share
+- **Public/Private Server** – Wahl zwischen öffentlicher Listung oder privatem LAN-Server
 - **Systemd Service** – Automatischer Start, einfache Verwaltung
 
 ## 📋 Voraussetzungen
 
 - Proxmox VE 7.x oder 8.x
 - Internetzugang für Template-Download
-- Optional: Samba-Share für Backups
+- Optional: Factorio.com Account für öffentliche Server
 
 ## 🔧 Was der Installer konfiguriert
 
@@ -37,7 +37,7 @@ Das Script führt dich durch einen interaktiven Wizard und erledigt alles automa
 | Game Port | UDP 34197 |
 | User | `factorio` (non-root) |
 | Service | systemd (`factorio.service`) |
-| Backup | Täglich 4:00 Uhr (Cron) |
+| Container | Unprivilegiert (sicher) |
 
 ## 📁 Projektstruktur
 
