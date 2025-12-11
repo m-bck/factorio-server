@@ -485,7 +485,7 @@ StandardError=journal
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/factorio/saves /opt/factorio/config /opt/factorio/mods /backup
+ReadWritePaths=/opt/factorio
 PrivateTmp=true
 
 [Install]
