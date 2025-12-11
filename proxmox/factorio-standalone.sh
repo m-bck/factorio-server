@@ -334,38 +334,43 @@ install_factorio() {
   msg_ok "Network ready"
 
   msg_info "Updating system packages"
-  pct exec "$CT_ID" -- bash -c "apt-get update && apt-get upgrade -y" &>/dev/null
+  pct exec "$CT_ID" -- apt-get update -qq
+  pct exec "$CT_ID" -- apt-get upgrade -y -qq
   msg_ok "System updated"
 
   msg_info "Installing dependencies"
-  pct exec "$CT_ID" -- bash -c "apt-get install -y curl sudo mc xz-utils jq cifs-utils openssh-server" &>/dev/null
+  pct exec "$CT_ID" -- apt-get install -y -qq curl sudo mc xz-utils jq cifs-utils openssh-server
   msg_ok "Dependencies installed"
 
   msg_info "Configuring SSH"
-  pct exec "$CT_ID" -- bash -c "echo 'root:${ROOT_PASSWORD}' | chpasswd"
-  pct exec "$CT_ID" -- bash -c "sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config"
-  pct exec "$CT_ID" -- bash -c "sed -i 's/PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config"
-  pct exec "$CT_ID" -- bash -c "systemctl enable ssh && systemctl restart ssh"
+  echo "root:${ROOT_PASSWORD}" | pct exec "$CT_ID" -- chpasswd
+  pct exec "$CT_ID" -- sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+  pct exec "$CT_ID" -- sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+  pct exec "$CT_ID" -- systemctl enable ssh
+  pct exec "$CT_ID" -- systemctl restart ssh
   msg_ok "SSH configured (root login enabled)"
 
   msg_info "Creating factorio user"
-  pct exec "$CT_ID" -- bash -c "groupadd -r factorio && useradd -r -g factorio -d /opt/factorio -s /bin/bash factorio" &>/dev/null
+  pct exec "$CT_ID" -- groupadd -r factorio 2>/dev/null || true
+  pct exec "$CT_ID" -- useradd -r -g factorio -d /opt/factorio -s /bin/bash factorio 2>/dev/null || true
   msg_ok "User created"
 
   msg_info "Fetching latest Factorio version"
-  FACTORIO_VERSION=$(pct exec "$CT_ID" -- bash -c "curl -fsSL 'https://factorio.com/api/latest-releases' | jq -r '.stable.headless // \"stable\"'")
+  FACTORIO_VERSION=$(pct exec "$CT_ID" -- curl -fsSL 'https://factorio.com/api/latest-releases' | jq -r '.stable.headless // "stable"')
   msg_ok "Latest version: $FACTORIO_VERSION"
 
   msg_info "Downloading Factorio Headless Server"
-  pct exec "$CT_ID" -- bash -c "curl -fsSL 'https://factorio.com/get-download/${FACTORIO_VERSION}/headless/linux64' -o /tmp/factorio.tar.xz"
+  pct exec "$CT_ID" -- curl -fsSL "https://factorio.com/get-download/${FACTORIO_VERSION}/headless/linux64" -o /tmp/factorio.tar.xz
   msg_ok "Downloaded Factorio"
 
   msg_info "Installing Factorio"
-  pct exec "$CT_ID" -- bash -c "tar -xJf /tmp/factorio.tar.xz -C /opt && rm /tmp/factorio.tar.xz"
+  pct exec "$CT_ID" -- tar -xJf /tmp/factorio.tar.xz -C /opt
+  pct exec "$CT_ID" -- rm /tmp/factorio.tar.xz
   msg_ok "Installed Factorio"
 
   msg_info "Creating directory structure"
-  pct exec "$CT_ID" -- bash -c "mkdir -p /opt/factorio/{saves,mods,config} /backup && chown -R factorio:factorio /opt/factorio /backup"
+  pct exec "$CT_ID" -- mkdir -p /opt/factorio/saves /opt/factorio/mods /opt/factorio/config /backup
+  pct exec "$CT_ID" -- chown -R factorio:factorio /opt/factorio /backup
   msg_ok "Directories created"
 
   # Upload configuration files
@@ -462,8 +467,9 @@ SYSTEMD
   # Samba mount configuration
   if [[ ${CONFIGURE_SMB,,} == "y" ]]; then
     msg_info "Configuring Samba backup mount"
-    pct exec "$CT_ID" -- bash -c "echo 'username=${SMB_USER}' > /root/.smbcredentials && echo 'password=${SMB_PASS}' >> /root/.smbcredentials && chmod 600 /root/.smbcredentials"
-    pct exec "$CT_ID" -- bash -c "echo '//${SMB_SERVER}/${SMB_SHARE} /backup cifs credentials=/root/.smbcredentials,uid=factorio,gid=factorio,file_mode=0660,dir_mode=0770 0 0' >> /etc/fstab"
+    printf "username=%s\npassword=%s\n" "$SMB_USER" "$SMB_PASS" | pct exec "$CT_ID" -- tee /root/.smbcredentials >/dev/null
+    pct exec "$CT_ID" -- chmod 600 /root/.smbcredentials
+    printf "//%s/%s /backup cifs credentials=/root/.smbcredentials,uid=factorio,gid=factorio,file_mode=0660,dir_mode=0770 0 0\n" "$SMB_SERVER" "$SMB_SHARE" | pct exec "$CT_ID" -- tee -a /etc/fstab >/dev/null
     pct exec "$CT_ID" -- mount -a 2>/dev/null || msg_warn "Could not mount Samba share - check credentials"
     msg_ok "Samba backup configured"
   fi
@@ -527,7 +533,8 @@ echo -e "    journalctl -u factorio -f"
 echo ""
 MOTDEOF
   pct exec "$CT_ID" -- chmod +x /etc/update-motd.d/10-factorio
-  pct exec "$CT_ID" -- bash -c "rm -f /etc/motd /etc/update-motd.d/10-uname 2>/dev/null || true"
+  pct exec "$CT_ID" -- rm -f /etc/motd 2>/dev/null || true
+  pct exec "$CT_ID" -- rm -f /etc/update-motd.d/10-uname 2>/dev/null || true
   msg_ok "Dynamic MOTD created"
 
   msg_info "Starting Factorio server"
