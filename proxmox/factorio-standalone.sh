@@ -204,33 +204,55 @@ configure_container() {
   TEMPLATE_STORAGE=$(select_storage "vztmpl")
   CONTAINER_STORAGE=$(select_storage "rootdir")
 
-  # SSH Root Password
+  # SSH Public Key (optional - but allows skipping password)
   echo ""
-  echo -e "${YW}SSH Root Password für Remote-Zugriff:${CL}"
-  while true; do
-    read -rsp "Root Password: " ROOT_PASSWORD
-    echo ""
-    read -rsp "Root Password (bestätigen): " ROOT_PASSWORD_CONFIRM
-    echo ""
-    if [[ "$ROOT_PASSWORD" == "$ROOT_PASSWORD_CONFIRM" ]]; then
-      if [[ ${#ROOT_PASSWORD} -lt 4 ]]; then
-        msg_warn "Passwort muss mindestens 4 Zeichen haben"
-      else
-        break
-      fi
-    else
-      msg_warn "Passwörter stimmen nicht überein"
-    fi
-  done
-  msg_ok "SSH Passwort gesetzt"
-
-  # SSH Public Key (optional)
-  echo ""
-  echo -e "${DIM}Optional: SSH Public Key für passwortlosen Zugriff${CL}"
-  echo -e "${DIM}(Windows: type %USERPROFILE%\\.ssh\\id_ed25519.pub | clip)${CL}"
+  echo -e "${BOLD}${BL}SSH Zugriff konfigurieren${CL}"
+  echo -e "${DIM}SSH Public Key ermöglicht passwortlosen Zugriff${CL}"
+  echo -e "${DIM}(Windows: Get-Content ~/.ssh/id_ed25519.pub | Set-Clipboard)${CL}"
   read -rp "SSH Public Key (Enter to skip): " SSH_PUBLIC_KEY
+
+  # SSH Root Password
   if [[ -n "$SSH_PUBLIC_KEY" ]]; then
     msg_ok "SSH Public Key wird eingerichtet"
+    echo ""
+    echo -e "${DIM}Passwort ist optional wenn SSH-Key gesetzt (für Proxmox Console nützlich)${CL}"
+    read -rsp "Root Password (Enter to skip): " ROOT_PASSWORD
+    echo ""
+    if [[ -n "$ROOT_PASSWORD" ]]; then
+      read -rsp "Root Password (bestätigen): " ROOT_PASSWORD_CONFIRM
+      echo ""
+      if [[ "$ROOT_PASSWORD" != "$ROOT_PASSWORD_CONFIRM" ]]; then
+        msg_warn "Passwörter stimmen nicht überein - kein Passwort gesetzt"
+        ROOT_PASSWORD=""
+      elif [[ ${#ROOT_PASSWORD} -lt 4 ]]; then
+        msg_warn "Passwort zu kurz - kein Passwort gesetzt"
+        ROOT_PASSWORD=""
+      else
+        msg_ok "SSH Passwort gesetzt"
+      fi
+    else
+      msg_info "Kein Passwort - nur SSH-Key Zugriff möglich"
+    fi
+  else
+    # No SSH key - password is required
+    echo ""
+    echo -e "${YW}SSH Root Password (erforderlich ohne SSH-Key):${CL}"
+    while true; do
+      read -rsp "Root Password: " ROOT_PASSWORD
+      echo ""
+      read -rsp "Root Password (bestätigen): " ROOT_PASSWORD_CONFIRM
+      echo ""
+      if [[ "$ROOT_PASSWORD" == "$ROOT_PASSWORD_CONFIRM" ]]; then
+        if [[ ${#ROOT_PASSWORD} -lt 4 ]]; then
+          msg_warn "Passwort muss mindestens 4 Zeichen haben"
+        else
+          break
+        fi
+      else
+        msg_warn "Passwörter stimmen nicht überein"
+      fi
+    done
+    msg_ok "SSH Passwort gesetzt"
   fi
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -427,7 +449,10 @@ install_factorio() {
   msg_ok "Dependencies installed"
 
   msg_info "Configuring SSH"
-  echo "root:${ROOT_PASSWORD}" | pct exec "$CT_ID" -- chpasswd
+  # Set password only if provided
+  if [[ -n "$ROOT_PASSWORD" ]]; then
+    echo "root:${ROOT_PASSWORD}" | pct exec "$CT_ID" -- chpasswd
+  fi
   pct exec "$CT_ID" -- sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config || true
   pct exec "$CT_ID" -- sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config || true
   pct exec "$CT_ID" -- systemctl enable ssh || true
