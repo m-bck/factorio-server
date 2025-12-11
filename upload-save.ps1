@@ -32,6 +32,8 @@ if (-not $SaveFile) {
     Write-Host ""
     Write-Host "  Drag and drop your save file here, or enter the path:" -ForegroundColor Yellow
     $SaveFile = Read-Host "  Save file path"
+    # Clean up path from drag & drop (PowerShell adds: & 'path')
+    $SaveFile = $SaveFile -replace "^&\s*", ""
     $SaveFile = $SaveFile.Trim('"').Trim("'")
 }
 
