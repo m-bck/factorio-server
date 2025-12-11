@@ -391,10 +391,11 @@ install_factorio() {
   msg_ok "Downloaded Factorio (${FILESIZE} bytes)"
 
   msg_info "Installing Factorio"
-  if ! pct exec "$CT_ID" -- tar -xJf /tmp/factorio.tar.xz -C /opt; then
+  TAR_OUTPUT=$(pct exec "$CT_ID" -- sh -c "tar -xJf /tmp/factorio.tar.xz -C /opt 2>&1") || {
     msg_error "Failed to extract Factorio archive"
+    echo "$TAR_OUTPUT"
     exit 1
-  fi
+  }
   pct exec "$CT_ID" -- rm -f /tmp/factorio.tar.xz
   msg_ok "Installed Factorio"
 
