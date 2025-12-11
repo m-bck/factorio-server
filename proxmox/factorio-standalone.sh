@@ -272,8 +272,8 @@ download_template() {
   # Update template list
   pveam update &>/dev/null || true
 
-  # Find template
-  TEMPLATE=$(pveam available -section system 2>/dev/null | grep -E "^${TEMPLATE_SEARCH}" | sort -V | tail -n1 | awk '{print $2}')
+  # Find template (format: "system          debian-12-standard_12.x-x_amd64.tar.zst")
+  TEMPLATE=$(pveam available -section system 2>/dev/null | awk '{print $2}' | grep -E "^${TEMPLATE_SEARCH}" | sort -V | tail -n1)
 
   if [[ -z "$TEMPLATE" ]]; then
     msg_error "Could not find template matching: $TEMPLATE_SEARCH"
