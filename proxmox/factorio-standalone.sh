@@ -333,8 +333,15 @@ install_factorio() {
   done
   msg_ok "Network ready"
 
-  msg_info "Updating system packages"
+  msg_info "Configuring locale"
   pct exec "$CT_ID" -- apt-get update -qq
+  pct exec "$CT_ID" -- apt-get install -y -qq locales
+  echo "en_US.UTF-8 UTF-8" | pct exec "$CT_ID" -- tee /etc/locale.gen >/dev/null
+  pct exec "$CT_ID" -- locale-gen >/dev/null 2>&1
+  pct exec "$CT_ID" -- update-locale LANG=en_US.UTF-8 >/dev/null 2>&1
+  msg_ok "Locale configured"
+
+  msg_info "Updating system packages"
   pct exec "$CT_ID" -- apt-get upgrade -y -qq
   msg_ok "System updated"
 
@@ -356,7 +363,7 @@ install_factorio() {
   msg_ok "User created"
 
   msg_info "Fetching latest Factorio version"
-  FACTORIO_VERSION=$(pct exec "$CT_ID" -- curl -fsSL 'https://factorio.com/api/latest-releases' | jq -r '.stable.headless // "stable"')
+  FACTORIO_VERSION=$(pct exec "$CT_ID" -- sh -c "curl -fsSL 'https://factorio.com/api/latest-releases' | jq -r '.stable.headless // \"stable\"'")
   msg_ok "Latest version: $FACTORIO_VERSION"
 
   msg_info "Downloading Factorio Headless Server"
