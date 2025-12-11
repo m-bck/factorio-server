@@ -18,13 +18,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 Write-Host ""
-Write-Host "  ███████╗ █████╗  ██████╗████████╗ ██████╗ ██████╗ ██╗ ██████╗ " -ForegroundColor Cyan
-Write-Host "  ██╔════╝██╔══██╗██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗██║██╔═══██╗" -ForegroundColor Cyan
-Write-Host "  █████╗  ███████║██║        ██║   ██║   ██║██████╔╝██║██║   ██║" -ForegroundColor Cyan
-Write-Host "  ██╔══╝  ██╔══██║██║        ██║   ██║   ██║██╔══██╗██║██║   ██║" -ForegroundColor Cyan
-Write-Host "  ██║     ██║  ██║╚██████╗   ██║   ╚██████╔╝██║  ██║██║╚██████╔╝" -ForegroundColor Cyan
-Write-Host "  ╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝ ╚═════╝ " -ForegroundColor Cyan
-Write-Host ""
+Write-Host "  FACTORIO" -ForegroundColor Cyan
 Write-Host "  Save File Uploader" -ForegroundColor White
 Write-Host ""
 
@@ -36,9 +30,8 @@ if (-not $ServerIP) {
 # Get save file if not provided
 if (-not $SaveFile) {
     Write-Host ""
-    Write-Host "  Drag & drop your save file here, or enter the path:" -ForegroundColor Yellow
+    Write-Host "  Drag and drop your save file here, or enter the path:" -ForegroundColor Yellow
     $SaveFile = Read-Host "  Save file path"
-    # Remove quotes if present (from drag & drop)
     $SaveFile = $SaveFile.Trim('"').Trim("'")
 }
 
