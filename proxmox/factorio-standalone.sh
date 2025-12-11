@@ -372,7 +372,8 @@ install_factorio() {
 
   msg_info "Downloading Factorio Headless Server"
   DOWNLOAD_URL="https://factorio.com/get-download/${FACTORIO_VERSION}/headless/linux64"
-  if ! pct exec "$CT_ID" -- curl -L --fail --progress-bar "$DOWNLOAD_URL" -o /tmp/factorio.tar.xz; then
+  # Use sh -c to ensure output redirection happens inside container
+  if ! pct exec "$CT_ID" -- sh -c "curl -L --fail --progress-bar '${DOWNLOAD_URL}' -o /tmp/factorio.tar.xz"; then
     msg_error "Failed to download Factorio from: $DOWNLOAD_URL"
     exit 1
   fi
