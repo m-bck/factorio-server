@@ -2,9 +2,11 @@
 
 A Proxmox Helper Script for automatically creating a Factorio Dedicated Server LXC Container.
 
-## 🚀 Quick Start (Standalone)
+## 🚀 Quick Start
 
-Run on the **Proxmox VE Shell**:
+### Full Installation (Default)
+
+Run on the **Proxmox VE Shell** for a complete installation (container + application):
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/m-bck/factorio-server/main/proxmox/factorio-standalone.sh)"
@@ -20,13 +22,93 @@ The script guides you through an interactive wizard:
 - Optional game password
 - Optional: SSH Public Key for passwordless access
 
+## 📋 Script Modes
+
+The `factorio-standalone.sh` script supports three modes of operation for flexible deployment:
+
+### Mode 1: Full Installation (Default)
+Complete installation - provisions container and installs application:
+
+```bash
+./factorio-standalone.sh
+# or
+./factorio-standalone.sh full
+```
+
+### Mode 2: Container Provisioning Only
+Creates and configures the LXC container without installing Factorio:
+
+```bash
+./factorio-standalone.sh provision
+```
+
+**What it does:**
+- Creates LXC container with specified resources
+- Configures networking (DHCP or static IP)
+- Sets up SSH access
+- Installs system dependencies
+- Updates and configures OS
+
+### Mode 3: Application Setup Only
+Installs Factorio on an existing container (run inside the container):
+
+```bash
+./factorio-standalone.sh setup
+```
+
+**What it does:**
+- Creates factorio user and directories
+- Downloads and installs Factorio headless server
+- Configures server settings
+- Creates systemd service for auto-start
+- Sets up dynamic MOTD
+
+## 🔧 Usage Scenarios
+
+### Scenario 1: Quick Full Installation
+Use this when you want everything done in one go:
+
+```bash
+# On Proxmox host
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/m-bck/factorio-server/main/proxmox/factorio-standalone.sh)"
+```
+
+### Scenario 2: Separate Provisioning and Setup
+Use this when you want to provision multiple containers first, then install applications later:
+
+```bash
+# Step 1: On Proxmox host - create container
+./factorio-standalone.sh provision
+
+# Step 2: Enter the container
+pct enter <CT_ID>
+
+# Step 3: Inside container - install Factorio
+./factorio-standalone.sh setup
+```
+
+### Scenario 3: Existing Container Setup
+Use this when you already have a VM or container and only want to install Factorio:
+
+```bash
+# Inside container/VM - install Factorio only
+./factorio-standalone.sh setup
+
 ## 📁 Project Structure
 
 ```
 proxmox/
-├── factorio-standalone.sh    # Standalone Installer
-└── README.md
+├── factorio-standalone.sh    # Multi-mode installer script
+└── README.md                 # German documentation
+└── README.en.md              # English documentation
 ```
+
+## 🔍 Requirements
+
+- Proxmox VE 7.x or 8.x
+- Internet connection for template and Factorio download
+- Minimum 2GB RAM, 2 CPU cores, 8GB disk space
+- Root access on Proxmox host (for provisioning modes)
 
 ## ⚙️ After Installation
 
