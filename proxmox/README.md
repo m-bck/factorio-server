@@ -2,9 +2,11 @@
 
 Ein Proxmox Helper Script zum automatischen Erstellen eines Factorio Dedicated Server LXC Containers.
 
-## 🚀 Schnellstart (Standalone)
+## 🚀 Schnellstart
 
-Auf der **Proxmox VE Shell** ausführen:
+### Vollständige Installation (Standard)
+
+Auf der **Proxmox VE Shell** ausführen für eine vollständige Installation (Container + Anwendung):
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/m-bck/factorio-server/main/proxmox/factorio-standalone.sh)"
@@ -20,13 +22,102 @@ Das Script führt dich durch einen interaktiven Wizard:
 - Optionales Spiel-Passwort
 - Optional: SSH Public Key für passwortlosen Zugriff
 
+## 📋 Script-Modi
+
+Das `factorio-standalone.sh` Script unterstützt drei Betriebsmodi für flexible Bereitstellung:
+
+### Modus 1: Vollständige Installation (Standard)
+Komplette Installation - erstellt Container und installiert Anwendung:
+
+```bash
+./factorio-standalone.sh
+# oder
+./factorio-standalone.sh full
+```
+
+### Modus 2: Nur Container-Bereitstellung
+Erstellt und konfiguriert den LXC Container ohne Factorio zu installieren:
+
+```bash
+./factorio-standalone.sh provision
+```
+
+**Was es macht:**
+- Erstellt LXC Container mit angegebenen Ressourcen
+- Konfiguriert Netzwerk (DHCP oder statische IP)
+- Richtet SSH-Zugriff ein
+- Installiert System-Abhängigkeiten
+- Aktualisiert und konfiguriert das OS
+
+### Modus 3: Nur Anwendungs-Setup
+Installiert Factorio auf einem existierenden Container (im Container ausführen):
+
+```bash
+./factorio-standalone.sh setup
+```
+
+**Was es macht:**
+- Erstellt factorio Benutzer und Verzeichnisse
+- Lädt Factorio Headless Server herunter und installiert ihn
+- Konfiguriert Server-Einstellungen
+- Erstellt systemd Service für Auto-Start
+- Richtet dynamisches MOTD ein
+
+## 🔧 Nutzungsszenarien
+
+### Szenario 1: Schnelle Vollinstallation
+Verwende dies, wenn du alles auf einmal erledigen möchtest:
+
+```bash
+# Auf Proxmox Host
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/m-bck/factorio-server/main/proxmox/factorio-standalone.sh)"
+```
+
+### Szenario 2: Getrennte Bereitstellung und Setup
+Verwende dies, wenn du zunächst mehrere Container bereitstellen und später Anwendungen installieren möchtest:
+
+```bash
+# Schritt 1: Auf Proxmox Host - Container erstellen
+./factorio-standalone.sh provision
+
+# Schritt 2: In den Container wechseln
+pct enter <CT_ID>
+
+# Schritt 3: Im Container - Factorio installieren
+./factorio-standalone.sh setup
+```
+
+### Szenario 3: Setup auf existierendem Container
+Verwende dies, wenn du bereits eine VM oder einen Container hast und nur Factorio installieren möchtest:
+
+```bash
+# Im Container/VM - Nur Factorio installieren
+./factorio-standalone.sh setup
+```
+
+## 💡 Warum separate Modi?
+
+1. **Flexibilität**: Container in Stapeln bereitstellen, Apps einzeln installieren
+2. **Fehlerbehebung**: Nur die fehlerhafte Phase erneut ausführen
+3. **Wiederverwendbarkeit**: Container-Bereitstellung für andere Game-Server nutzen
+4. **Testen**: Container-Setup separat von Anwendungs-Deployment testen
+5. **Automatisierung**: Einfachere Integration in CI/CD-Pipelines
+
 ## 📁 Projektstruktur
 
 ```
 proxmox/
-├── factorio-standalone.sh    # Standalone Installer
-└── README.md
+├── factorio-standalone.sh    # Multi-Modus Installer Script
+└── README.md                 # Deutsche Dokumentation
+└── README.en.md              # Englische Dokumentation
 ```
+
+## 🔍 Anforderungen
+
+- Proxmox VE 7.x oder 8.x
+- Internetverbindung für Template- und Factorio-Download
+- Minimum 2GB RAM, 2 CPU-Kerne, 8GB Disk-Speicher
+- Root-Zugriff auf Proxmox Host (für Bereitstellungs-Modi)
 
 ## ⚙️ Nach der Installation
 
